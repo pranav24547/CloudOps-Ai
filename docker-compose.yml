@@ -1,0 +1,116 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cloudops-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cloudops}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cloudopspassword}
+      POSTGRES_DB: ${POSTGRES_DB:-cloudops_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cloudops} -d ${POSTGRES_DB:-cloudops_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  aws-mcp:
+    build:
+      context: .
+      dockerfile: mcp-servers/aws/Dockerfile
+    container_name: cloudops-aws-mcp
+    restart: unless-stopped
+    ports:
+      - "8101:8101"
+    environment:
+      - CLOUDOPS_MODE=${CLOUDOPS_MODE:-demo}
+      - AWS_MODE=${AWS_MODE:-}
+      - AWS_REGION=${AWS_REGION:-ap-south-1}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MCP_TRANSPORT=streamable-http
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=8101
+
+  github-mcp:
+    build:
+      context: .
+      dockerfile: mcp-servers/github/Dockerfile
+    container_name: cloudops-github-mcp
+    restart: unless-stopped
+    ports:
+      - "8102:8102"
+    environment:
+      - CLOUDOPS_MODE=${CLOUDOPS_MODE:-demo}
+      - GITHUB_MODE=${GITHUB_MODE:-}
+      - GITHUB_REPOSITORY=${GITHUB_REPOSITORY:-acme-corp/orders-api}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MCP_TRANSPORT=streamable-http
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=8102
+
+  docker-mcp:
+    build:
+      context: .
+      dockerfile: mcp-servers/docker/Dockerfile
+    container_name: cloudops-docker-mcp
+    restart: unless-stopped
+    ports:
+      - "8103:8103"
+    environment:
+      - CLOUDOPS_MODE=${CLOUDOPS_MODE:-demo}
+      - DOCKER_MODE=${DOCKER_MODE:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MCP_TRANSPORT=streamable-http
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=8103
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: cloudops-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      aws-mcp:
+        condition: service_started
+      github-mcp:
+        condition: service_started
+      docker-mcp:
+        condition: service_started
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-cloudops}:${POSTGRES_PASSWORD:-cloudopspassword}@postgres:5432/${POSTGRES_DB:-cloudops_db}
+      - AWS_MCP_URL=http://aws-mcp:8101/mcp
+      - GITHUB_MCP_URL=http://github-mcp:8102/mcp
+      - DOCKER_MCP_URL=http://docker-mcp:8103/mcp
+      - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
+      - LLM_MODEL=${LLM_MODEL:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-cloudops-super-secret-development-key-32chars}
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    container_name: cloudops-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+
+volumes:
+  pgdata:
