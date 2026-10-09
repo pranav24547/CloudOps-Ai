@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# Testing & Linting
+.pytest_cache/
+.ruff_cache/
+.coverage
+
+# Local databases & runtime state
+*.db
+*.sqlite
+*.sqlite3
+.simulated_state.json
+
+# Environment variables & secrets
+.env
+.env.local
+.env.*.local
+
+# Node.js & Next.js frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+node_modules/
+.next/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+make_commits.py
