@@ -1,0 +1,18 @@
+[project]
+name = "cloudops-ai"
+version = "1.0.0"
+description = "Autonomous Cloud Infrastructure & DevOps Assistant powered by Model Context Protocol (MCP)"
+readme = "README.md"
+requires-python = ">=3.11"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501", "E402"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+testpaths = ["tests"]
